@@ -145,7 +145,15 @@ if (ps->s->r == NULL || ps->s->d == NULL) {	\
 				return;	\
 			}	\
 		}	\
+		/* Declared object properties are represented by IS_INDIRECT entries. */	\
+		if (Z_TYPE_P(tmp) == IS_INDIRECT) {	\
+			tmp = Z_INDIRECT_P(tmp);	\
+		}	\
+		ZVAL_DEREF(tmp);	\
 		ps = (struct php_scws *) zend_fetch_resource_ex(tmp, PHP_SCWS_OBJECT_TAG, le_scws);	\
+		if (ps == NULL) {	\
+			RETURN_FALSE;	\
+		}	\
 	} while(0)
 #else
 #define	SCWS_FETCH_PARAMETERS(ts, ...)	\
@@ -277,8 +285,14 @@ PHP_MINIT_FUNCTION(scws)
 	REGISTER_INI_ENTRIES();
 
 	le_scws = zend_register_list_destructors_ex(php_scws_dtor, NULL, PHP_SCWS_OBJECT_TAG, module_number);
+#if (PHP_MAJOR_VERSION == 8 && PHP_MINOR_VERSION > 0) || (PHP_MAJOR_VERSION > 8)
+	/* Also registers the declared handle property, avoiding PHP 8.2's
+	 * dynamic-property deprecation warning in scws_new(). */
+	scws_class_entry_ptr = register_class_SimpleCWS();
+#else
 	INIT_CLASS_ENTRY(scws_class_entry, "SimpleCWS", class_SimpleCWS_methods);
 	scws_class_entry_ptr = zend_register_internal_class(&scws_class_entry TSRMLS_CC);
+#endif
 
 	REGISTER_LONG_CONSTANT("SCWS_XDICT_XDB",	SCWS_XDICT_XDB, CONST_CS|CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("SCWS_XDICT_MEM",	SCWS_XDICT_MEM, CONST_CS|CONST_PERSISTENT);

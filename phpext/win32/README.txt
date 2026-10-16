@@ -1,17 +1,8 @@
-README of phpext on win32
-===========================
+Windows PHP extension reference
+===============================
 
-$Id$
+此目錄保留上游 Windows PHP 擴充的歷史參考資料。
+本專案目前發行 Linux 原始碼套件，未提供或驗證 PHP 8.4 Windows DLL。
 
-* 在 1.0.2 及以前，由 ben 移植并编译到 windows 中，下载地址：
-  <http://www.yanbin.org/php-scws-windows-edtion/>
-
-* 自 1.0.3 起，由 hightman 整合将 win32 的支持加入到代码分支中，并提供相应的工程文件，
-  可在 vc 环境下可直接编译。
-
-* 自 1.1.8 起，同时提供 vc9 环境为 php-5.3.x 编译的 php_scws.dll
-
-* 自 1.2.0 起，同时提供 VC9 环境为 php-5.4.x 编译的 php_scws.dll；
-  同时还提供了 Non-Thread-Safety 的 5.3/5.4 下的 php_scws.dll。
-
-> 注意：未注明 nts 时，编译好的各版本 php_scws.dll 均为 Thread-Safety 版本。
+請由 repository 根目錄的 README.md 與 INSTALL.md 查閱目前支援範圍。
+原作者、貢獻者與原始檔案內的授權／著作權聲明仍予保留。

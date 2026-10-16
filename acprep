@@ -1,6 +1,7 @@
 #!/bin/sh
+set -eu
 # $Id: $
-# This file is intended for developers only and is not included into dist
+# This file is for developers; release users can run the included configure.
 # Please RUN this AFTER cvs checkout/update
 # This will re-create all needed stuff
 # (aclocal.m4, config.h.in, Makefile.in, configure)
@@ -15,7 +16,7 @@ if [ "x$SYSNAME" = "xDarwin" ] ; then
 fi
 
 # clean
-if test "x-$1" = "x---clean" ; then
+if test "x-${1:-}" = "x---clean" ; then
 	echo "Cleaning ..."
 	if test -f Makefile ; then
 	  make clean
@@ -31,16 +32,12 @@ fi
 
 # init
 ln -sf README.md README
-for cmd in aclocal autoheader \
-		"$LIBTOOLIZE --copy --force" \
-		"automake --add-missing --copy --force" autoconf ; do
-	echo "Running command: $cmd ..."
-	$cmd 2>&1 | grep -i -v warning
-done
+export LIBTOOLIZE
+autoreconf --install --force
 echo
 echo "--==*** You can run ./configure now ***==--";
 echo -n "               Happy hacking";
-if test -n $USER; then
+if test -n "${USER:-}"; then
 	echo -n ", $USER";
 fi
 echo !

@@ -181,7 +181,11 @@ if (ps->s->r == NULL || ps->s->d == NULL) {	\
 struct php_scws
 {
 	scws_t s;
+#if PHP_MAJOR_VERSION >= 7
+	zend_string *text;
+#else
 	zval *zt;
+#endif
 	char charset[8];
 #if PHP_MAJOR_VERSION >= 7
 	zend_resource *rsrc_id;
@@ -240,7 +244,11 @@ static ZEND_RSRC_DTOR_FUNC(php_scws_dtor)
 	if (rsrc->ptr) {
 		struct php_scws *ps = (struct php_scws *) rsrc->ptr;
 		scws_free(ps->s);
-#if PHP_MAJOR_VERSION < 7
+#if PHP_MAJOR_VERSION >= 7
+		if (ps->text != NULL) {
+			zend_string_release(ps->text);
+		}
+#else
 		DELREF_SCWS(ps->zt);
 #endif
 		efree(ps);
@@ -343,7 +351,11 @@ static void *_php_create_scws(TSRMLS_D)
 
 	ps = (struct php_scws *)emalloc(sizeof(struct php_scws));
 	ps->s = s;
+#if PHP_MAJOR_VERSION >= 7
+	ps->text = NULL;
+#else
 	ps->zt = NULL;
+#endif
 	ps->charset[0] = '\0';
 	ps->rsrc_id = ZEND_REGISTER_RESOURCE(NULL, ps, le_scws);
 
@@ -556,22 +568,28 @@ PHP_FUNCTION(scws_send_text)
 {
 	zval *text;
 	struct php_scws *ps;
+#if PHP_MAJOR_VERSION >= 7
+	zend_string *new_text;
+#endif
 
 	SCWS_FETCH_PARAMETERS("z", &text);
 
 #if	PHP_MAJOR_VERSION >= 7
 	convert_to_string_ex(text);
+	/* The core borrows this buffer until the next send_text or close. */
+	new_text = zend_string_copy(Z_STR_P(text));
+	if (ps->text != NULL) {
+		zend_string_release(ps->text);
+	}
+	ps->text = new_text;
+	scws_send_text(ps->s, ZSTR_VAL(ps->text), ZSTR_LEN(ps->text));
 #else
 	convert_to_string_ex(&text);
-#endif
-
-#if PHP_MAJOR_VERSION < 7
 	DELREF_SCWS(ps->zt);
 	ZVAL_ADDREF(text);
-#endif
 	ps->zt = text;
-
 	scws_send_text(ps->s, Z_STRVAL_P(ps->zt), Z_STRLEN_P(ps->zt));
+#endif
 
 	CHECK_DR_SCWS();
 

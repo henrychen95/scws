@@ -1,5 +1,15 @@
-NEWS of SCWS
+SCWS 發行變更
 =============
 
-将代码管理迁移到 git/github (2013-1-7)
+1.2.4（尚未發佈）
+----------------
+- 提供包含 configure、Makefile.in 與建置輔助檔案的 Linux 原始碼發行套件。
+- 修正新版 Automake 的建置規則及 CLI 分離目錄建置路徑。
+- 納入 PHP 8.2 動態屬性與 PHP 8.4 物件資源取得修正。
+- 修正 PHP 7+ send_text 輸入字串的保存與釋放。
+- 加入離線核心、CLI、詞典轉換與 PHP 8.4 安裝驗證流程。
+- 加入 GitHub Actions 打包、驗證與草稿 Release 流程。
+- 以本專案發行方式重寫 README、安裝、API、詞典與發行文件。
 
+本版實測：Ubuntu 22.04.5 LTS / GCC 11.4 / PHP 8.4.26 NTS。
+較早的歷史紀錄保留於 ChangeLog；程式變更可查看 Git 提交歷史。

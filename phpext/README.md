@@ -1,259 +1,146 @@
-SCWS 之 PHP 扩展
-================
-$Id$
+# SCWS PHP 擴充
 
+本擴充將 SCWS 核心提供為 PHP 物件與函式。現行發行目標為 PHP 8.4；1.2.4 的安裝與分詞已於 PHP 8.4.26 NTS 驗證。
 
-简介
------
+核心及擴充的編譯、啟用方式見 [安裝說明](../INSTALL.md)。版本變更見 [NEWS](../NEWS)，問題請提交至 [本專案 Issues](https://github.com/henrychen95/scws/issues)。
 
-[SCWS][1] 是一个简易的中文分词引擎，它可以将输入的文本字符串根据设定好的选项切割后以数组形式返回每一个词汇。
-它为中文而编写，支持 gbk 和 utf8 字符集，适当的修改词典后也可以支持非中文的多字节语言切词（如日文、韩文等）。
-除分词外，还提供一个简单的关键词汇统计功能，它内置了一个简单的算法来排序。
+## 物件式分詞
 
-更多相关情况请访问 scws 主页：<http://www.xunsearch.com/scws>
+使用 `scws_new()` 建立帶有有效資源的 `SimpleCWS` 物件。直接 `new SimpleCWS()` 不會初始化分詞資源；不要自行改寫 `handle` 屬性。
 
-
-需求
------
-
-本扩展需要 scws-1.x.x 的支持。
-
-
-安装
------
-
-这是一个 php 扩展，除 windows 上的 php_scws.dll 外只提供源代码，需要自行下载并编译，具体参见[这里][2]。
-
-
-运行时配置
-----------
-
-`scws.default.charset`  default = gbk, Changeable = PHP_INI_ALL  
-`scws.default.fpath` default = NULL, Changeable = PHP_INI_ALL
-
-
-> 有关 PHP_INI_* 常量进一步的细节与定义参见 PHP 手册。
-
-
-资源类型
-----------
-
-本扩展定义了一种资源类型：scws 指针，指向正在被操作的 scws 对象。
-
-
-预定义常量
------------
-
-* `SCWS_XDICT_XDB`  词典文件为 XDB
-* `SCWS_XDICT_MEM`  将词典全部加载到内存里
-* `SCWS_XDICT_TXT`  词典文件为 TXT（纯文本）
-
-* `SCWS_MULTI_NONE`     不进行复合分词
-* `SCWS_MULTI_SHORT`	短词复合  
-* `SCWS_MULTI_DUALITY`   散字二元复合
-* `SCWS_MULTI_ZMAIN`	重要单字
-* `SCWS_MULTI_ZALL`     全部单字
-
-
-预定义类
----------
-
-这是一个类似 `Directory` 的内置式伪类操作，类方法建立请使用 `scws_new()` 函数，而不能直接用 `new SimpleCWS`。
-否则不会包含有 handle 指针，将无法正确操作。它包含的方法有：
-
-```php
-class SimpleCWS  {
-  resource handle;
-  bool close(void);
-  bool set_charset(string charset)
-  bool add_dict(string dict_path[, int mode = SCWS_XDICT_XDB])
-  bool set_dict(string dict_path[, int mode = SCWS_XDICT_XDB])
-  bool set_rule(string rule_path)
-  bool set_ignore(bool yes)
-  bool set_multi(int mode)
-  bool set_duality(bool yes)
-  bool send_text(string text)
-  mixed get_result(void)
-  mixed get_tops([int limit [, string xattr]])
-  bool has_word(string xattr)
-  mixed get_words(string xattr)
-  string version(void)
-};
-```
-
-> **注意** 类方法的用与支 scws_xxx_xxx 系列函数用法一致，只不过免去第一参数，
-> 故不另外编写说明，请参见函数列表即可。
-
-**例子1** 使用类方法分词
+以下範例從命令列接收 UTF-8 文字詞典與規則檔路徑，存成 `segment.php`：
 
 ```php
 <?php
-$so = scws_new();
-$so->set_charset('gbk');
-// 这里没有调用 set_dict 和 set_rule 系统会自动试调用 ini 中指定路径下的词典和规则文件
-$so->send_text("我是一个中国人,我会C++语言,我也有很多T恤衣服");
-while ($tmp = $so->get_result())
-{
-  print_r($tmp);
+$scws = scws_new();
+if ($scws === false) {
+    throw new RuntimeException('無法建立 SCWS');
 }
-$so->close();
-?>
+try {
+    $scws->set_charset('utf8');
+    if (!$scws->set_dict($argv[1], SCWS_XDICT_TXT)) {
+        throw new RuntimeException('無法載入詞典');
+    }
+    if (!$scws->set_rule($argv[2])) {
+        throw new RuntimeException('無法載入規則');
+    }
+    $scws->send_text('中文分詞測試');
+    while ($rows = $scws->get_result()) {
+        foreach ($rows as $row) {
+            echo $row['word'], PHP_EOL;
+        }
+    }
+} finally {
+    $scws->close();
+}
 ```
 
-**例子2** 使用函数提取高频词
+在解壓後的套件根目錄執行：
+
+```sh
+php8.4 segment.php tests/dict.utf8.txt /usr/local/etc/rules.utf8.ini
+```
+
+會依序輸出 `中文`、`分詞`、`測試`。正式 XDB 詞典請改用 `SCWS_XDICT_XDB`，詳見 [詞典與規則](../docs/DICTIONARIES.md)。
+
+## 函式式分詞
+
+將上述物件式操作換成對應的 `scws_*` 函式，第一個參數為 `scws_open()` 回傳的資源：
 
 ```php
 <?php
-$sh = scws_open();
-scws_set_charset($sh, 'gbk');
-scws_set_dict($sh, '/path/to/dict.xdb');
-scws_set_rule($sh, '/path/to/rules.ini');
-$text = "我是一个中国人，我会C++语言，我也有很多T恤衣服";
-scws_send_text($sh, $text);
-$top = scws_get_tops($sh, 5);
-print_r($top);
-?>
+$handle = scws_open();
+if ($handle === false) {
+    throw new RuntimeException('無法建立 SCWS');
+}
+try {
+    scws_set_charset($handle, 'utf8');
+    if (!scws_set_dict($handle, $argv[1], SCWS_XDICT_TXT)) {
+        throw new RuntimeException('無法載入詞典');
+    }
+    if (!scws_set_rule($handle, $argv[2])) {
+        throw new RuntimeException('無法載入規則');
+    }
+    scws_send_text($handle, '中文分詞測試');
+    while ($rows = scws_get_result($handle)) {
+        foreach ($rows as $row) {
+            echo $row['word'], PHP_EOL;
+        }
+    }
+} finally {
+    scws_close($handle);
+}
 ```
 
-> **注意** 为方便使用，当 `SimpleCWS::send_text` 方法或 `scws_send_text()` 函数被调用前并且没有
-> 加载任何词典和规则集时，系统会自动在 `scws.default.fpath` (ini配置)目录中查找相应的字符集词典。
-> 词典和规则文件的命名方式为 dict[.字符集].xdb 和 rules[.字符集].ini ，当字符集是 gbk 时中括号里面的
-> 部分则不需要，直接使用 dict.xdb 和 rules.ini 而不是 dict.gbk.xdb 。
-> 
-> 此外，输入的文字，词典、规则文件这三者的字符集必须统一，如果不是默认的 gbk 字符集请调用 
-> `SimpleCWS::set_charset` 或 `scws_set_charset` 来设定，否则可能出现意外错误。
+儲存後使用相同的命令列參數執行。關閉資源後不要再操作該資源。
 
+## 設定
 
-函数详解
---------
+| php.ini 項目 | 擴充內建預設 | 用途 |
+| --- | --- | --- |
+| `scws.default.charset` | `gbk` | 新分詞資源的預設編碼；使用 UTF-8 時設為 `utf8` |
+| `scws.default.fpath` | 未設定 | 自動載入詞典與規則檔的目錄 |
 
-1. `mixed scws_new(void)` 创建并返回一个 `SimpleCWS` 类操作对象。
+兩項都可在執行期設定。使用 UTF-8 並指定目錄時，會在未載入對應資源的情況下，嘗試尋找 `dict.utf8.xdb` 與 `rules.utf8.ini`；GBK 對應 `dict.xdb` 與 `rules.ini`。正式環境可直接透過 API 指定路徑，並檢查載入結果。
 
-   > **返回值** 成功返回类操作句柄，失败返回 false。
+## API 對照
 
-2. `mixed scws_open(void)` 创建并返回一个分词操作句柄。
+下表描述有效且尚未關閉的資源。函式式 API 除 `scws_open()`、`scws_new()` 與 `scws_version()` 外，第一個參數均為資源 handle。
 
-   > **返回值** 成功返回 scws 操作句柄，失败返回 false。
+| 物件方法 | 函式 | 行為／回傳值 |
+| --- | --- | --- |
+| 由 `scws_new()` 建立 | `scws_new()` | 回傳 `SimpleCWS`，建立失敗為 `false` |
+| — | `scws_open()` | 回傳資源，建立失敗為 `false` |
+| `close()` | `scws_close()` | 關閉資源；沒有回傳值 |
+| `set_charset($charset)` | `scws_set_charset()` | 設定 `utf8` 或 `gbk`，回傳 `true` |
+| `set_dict($path, $mode)` | `scws_set_dict()` | 取代詞典，成功為 `true`、失敗為 `false` |
+| `add_dict($path, $mode)` | `scws_add_dict()` | 加入較高優先序詞典，成功為 `true`、失敗為 `false` |
+| `set_rule($path)` | `scws_set_rule()` | 取代規則檔，成功為 `true`、失敗為 `false` |
+| `set_ignore($yes)` | `scws_set_ignore()` | 設定是否略過標點，回傳 `true` |
+| `set_multi($mode)` | `scws_set_multi()` | 設定複合分詞模式，範圍 0–15 |
+| `set_duality($yes)` | `scws_set_duality()` | 設定零散單字二字聚合，回傳 `true` |
+| `send_text($text)` | `scws_send_text()` | 指定本次文字，回傳 `true` |
+| `get_result()` | `scws_get_result()` | 回傳一批結果陣列，讀取完畢為 `false` |
+| `get_tops($limit = 10[, $attr])` | `scws_get_tops()` | 回傳依權重排序的關鍵詞陣列；省略 attr 表示不篩選 |
+| `has_word($attr)` | `scws_has_word()` | 是否包含符合詞性條件的詞，回傳布林值 |
+| `get_words($attr)` | `scws_get_words()` | 回傳符合詞性條件的詞語統計陣列 |
+| `version()` | `scws_version()` | 回傳擴充與核心版本資訊字串 |
 
-3. `bool scws_close(resource scws_handle)`  
-   `SimpleCWS::close(void)` 关闭一个已打开的 scws 分词操作句柄。
+`get_result()` 需持續呼叫至 `false`，單次呼叫不保證讀取整段文字。再次呼叫 `send_text()` 會取代先前輸入；請先完成目前的結果讀取。
 
-   > **参数 scws_handle** 即之前由 scws_open 打开的返回值。  
-   > **返回值** 始终为 true  
-   > **注意** 后面的 API 中省去介绍 scws_handle 参数，含义和本函数相同。
+### 回傳欄位
 
-4. `bool scws_set_charset(resource scws_handle, string charset)`  
-   `bool SimpleCWS::set_charset(string charset)` 设定分词词典、规则集、欲分文本字符串的字符集。
+`get_result()` 的每筆資料包含：
 
-   > **参数 charset** 要新设定的字符集，目前只支持 utf8 和 gbk。（注：默认为 gbk，utf8不要写成utf-8）  
-   > **返回值** 始终为 true
+| 欄位 | 說明 |
+| --- | --- |
+| `word` | 詞語字串 |
+| `off` | 詞語在輸入文字中的位元組偏移 |
+| `len` | 詞語的位元組長度 |
+| `idf` | 詞典／規則提供的 IDF |
+| `attr` | 詞性標記 |
 
-5. `bool scws_add_dict(resource scws_handle, string dict_path [, int mode])`
-   `bool SimpleCWS::add_dict(string dict_path [, int mode])` 添加分词所用的词典，新加入的优先查找。
+`get_tops()` 與 `get_words()` 的每筆資料包含 `word`、`times`、`weight`、`attr`。沒有符合項目時為空陣列。
 
-   > **参数 dict_path** 词典的路径，可以是相对路径或完全路径。（遵循安全模式下的 open_basedir）  
-   > **参数 mode** 可选，表示加载的方式。其值有：
-   >
-   >   - SCWS_XDICT_TXT  表示要读取的词典文件是文本格式，可以和后2项结合用
-   >   - SCWS_XDICT_XDB  表示直接读取 xdb 文件（此为默认值）
-   >   - SCWS_XDICT_MEM  表示将 xdb 文件全部加载到内存中，以 XTree 结构存放，可用异或结合另外2个使用。
-   >
-   > **返回值** 成功返回 true 失败返回 false
+### 常數與篩選
 
-6. `bool scws_set_dict(resource scws_handle, string dict_path [, int mode])`  
-   `bool SimpleCWS::set_dict(string dict_path [, int mode])` 设定分词所用的词典并清除已存在的词典列表。
+詞典模式為 `SCWS_XDICT_XDB`、`SCWS_XDICT_TXT`，可用位元 OR（`|`）搭配 `SCWS_XDICT_MEM` 載入記憶體。
 
-   > **参数 dict_path** 词典的路径，可以是相对路径或完全路径。（遵循安全模式下的 open_basedir）  
-   > **参数 mode** 可选，表示加载的方式。参见 `scws_add_dict`  
-   > **返回值** 成功返回 true 失败返回 false
+複合分詞模式為 `SCWS_MULTI_NONE`、`SCWS_MULTI_SHORT`、`SCWS_MULTI_DUALITY`、`SCWS_MULTI_ZMAIN`、`SCWS_MULTI_ZALL`，可用 `|` 組合。PHP 的模式值為 0–15，請使用 PHP 擴充提供的常數。
 
-7. `bool scws_set_rule(resource scws_handle, string rule_path)`  
-   `bool SimpleCWS::set_rule(string rule_path)` 设定分词所用的新词识别规则集（用于人名、地名、数字时间年代等识别）。
+詞性條件如 `n,v` 表示只取這些詞性，`~n,v` 表示排除它們；實際詞性取決於詞典與規則資料。
 
-   > **参数 rule_path** 规则集的路径，可以是相对路径或完全路径。（遵循安全模式下的 open_basedir）  
-   > **参数 mode** 可选，表示加载的方式。参见 `scws_add_dict`  
-   > **返回值** 成功返回 true 失败返回 false
+## 關鍵詞
 
-8. `bool scws_set_ignore(resource scws_handle, bool yes)`  
-   `bool SimpleCWS::set_ignore(bool yes)` 设定分词返回结果时是否去除一些特殊的标点符号之类。
+在載入詞典與規則後，以同一個物件執行：
 
-   > **参数 yes** 设定值，如果为 true 则结果中不返回标点符号，如果为 false 则会返回，缺省为 false。  
-   > **返回值** 始终为 true
+```php
+$scws->send_text('中文分詞測試，中文分詞');
+$tops = $scws->get_tops(5);
+$words = $scws->get_words('n');
+$hasNoun = $scws->has_word('n');
+```
 
-9. `bool scws_set_multi(resource scws_handle, int mode)`  
-   `bool SimpleCWS::set_multi(bool yes)` 设定分词返回结果时是否复式分割，如“中国人”返回“中国＋人＋中国人”三个词。
+## 版本相容性
 
-   > **参数 mode** 复合分词法的级别，缺省不复合分词。取值由下面几个常量异或组合（也可用 1-15 来表示）：
-   >
-   >   - SCWS_MULTI_SHORT   (1)短词
-   >   - SCWS_MULTI_DUALITY (2)二元（将相邻的2个单字组合成一个词）
-   >   - SCWS_MULTI_ZMAIN   (4)重要单字
-   >   - SCWS_MULTI_ZALL    (8)全部单字
-   >
-   > **返回值** 始终为 true
-
-10. `bool scws_set_duality(resource scws_handle, bool yes)`  
-    `bool SimpleCWS::set_duality(bool yes)` 设定是否将闲散文字自动以二字分词法聚合
-
-   > **参数 yes** 设定值，如果为 true 则结果中多个单字会自动按二分法聚分，如果为 false 则不处理，缺省为 false。  
-   > **返回值** 始终为 true
-
-11. `bool scws_send_text(resource scws_handle, string text)`  
-    `bool SimpleCWS::send_text(string text)` 发送设定分词所要切割的文本。
-
-   > **参数 text** 要切分的文本的内容。  
-   > **返回值** 成功返回 true 失败返回 false  
-   > **注意** 系统底层处理方式为对该文本增加一个引用，故不论多长的文本并不会造成内存浪费；
-   > 执行本函数时，若未加载任何词典和规则集，则会自动试图在 ini 指定的缺省目录下查找缺省字符集的词典和规则集。
-
-12. `mixed scws_get_result(resource scws_handle)`  
-    `mixed SimpleCWS::get_result()` 根据 send_text 设定的文本内容，返回一系列切好的词汇。
-
-   > **返回值** 成功返回切好的词汇组成的数组，若无更多词汇，返回 false。返回的词汇包含的键值如下：
-   >
-   >   - word _string_ 词本身
-   >   - idf _float_ 逆文本词频
-   >   - off _int_ 该词在原文本路的位置
-   >   - attr _string_ 词性
-   >
-   > **注意** 每次切词后本函数应该循环调用，直到返回 false 为止，因为程序每次返回的词数是不确定的。
-
-13. `mixed scws_get_tops(resource scws_handle [, int limit [, string attr]])`  
-    `mixed SimpleCWS::get_tops([int limit [, string attr]])` 根据 send_text 设定的文本内容，返回系统计算出来的最关键词汇列表。
-
-   > **参数 limit** 可选参数，返回的词的最大数量，缺省是 10  
-   > **参数 attr** 可选参数，是一系列词性组成的字符串，各词性之间以半角的逗号隔开，
-   > 这表示返回的词性必须在列表中，如果以~开头，则表示取反，词性必须不在列表中，缺省为NULL，返回全部词性，不过滤。  
-   > **返回值** 成功返回统计好的的词汇组成的数组，返回 false。返回的词汇包含的键值如下：
-   >
-   >   - word _string_ 词本身
-   >   - times _int_ 词在文本中出现的次数
-   >   - weight _float_ 该词计算后的权重
-   >   - attr _string_ 词性
-
-14. `mixed scws_get_words(resource scws_handle, string attr)`  
-    `mixed SimpleCWS::get_words(string attr)` 根据 send_text 设定的文本内容，返回系统中词性符合要求的关键词汇。
-
-   > **参数 attr** 是一系列词性组成的字符串，各词性之间以半角的逗号隔开，
-   > 这表示返回的词性必须在列表中，如果以~开头，则表示取反，词性必须不在列表中，若为空则返回全部词。  
-   > **返回值** 成功返回符合要求词汇组成的数组，返回 false。返回的词汇包含的键值参见 `scws_get_result`
-
-15. `bool scws_has_words(resource scws_handle, string attr)`  
-    `mixed SimpleCWS::has_words(string attr)` 根据 send_text 设定的文本内容，返回系统中是否包括符合词性要求的关键词。
-
-   > **参数 attr** 是一系列词性组成的字符串，各词性之间以半角的逗号隔开，
-   > 这表示返回的词性必须在列表中，如果以~开头，则表示取反，词性必须不在列表中，若为空则返回全部词。  
-   > **返回值** 如果有则返回 true，没有就返回 false。
-
-16. `string scws_version(void)`  
-    `string SimpleCWS::version(void)` 返回 scws 版本号名称信息（字符串）。
-
-
-其它
-------
-
-本说明由 hightman 首次编写于 2007/06/07，最近于 2013/01/07 更新。
-
-
-[1]: http://www.xunsearch.com/scws/
-[2]: https://github.com/hightman/scws/blob/master/README.md
+本版修正 PHP 8.2 動態屬性警告、PHP 8.4 物件資源取得，以及 PHP 7+ 輸入字串的保存與釋放。實測環境與發行驗證方式見 [README](../README.md)及 [發行流程](../RELEASING.md)。原始碼仍保留舊 PHP 相容分支，這不代表所有舊版本都已驗證。

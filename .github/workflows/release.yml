@@ -1,0 +1,60 @@
+name: Linux source release
+
+on:
+  push:
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+      - name: Install release tools
+        run: sudo apt-get update && sudo apt-get install -y build-essential autoconf automake libtool
+      - name: Check release tag
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          version=$(sed -n 's/^AC_INIT(\[scws\], \[\([^]]*\)\].*/\1/p' configure.ac)
+          test "$RELEASE_TAG" = "v$version"
+      - name: Build and check source distribution
+        run: sh scripts/make-release.sh
+      - name: Verify Linux and PHP 8.4 installation from the archive
+        run: sh scripts/check-release.sh dist/scws-*.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: scws-source-release
+          path: dist/*
+          if-no-files-found: error
+
+  draft-release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: scws-source-release
+          path: dist
+      - name: Create draft release with installable assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$RELEASE_TAG" --repo "$GH_REPO" --verify-tag --draft \
+            --title "SCWS $RELEASE_TAG" \
+            --notes 'Linux source distribution with generated configure files and PHP 8.4 support. Download the attached scws-*.tar.gz asset and its SHA256 file. Refs: CU-z8v9xnj0gq' \
+            dist/*

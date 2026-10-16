@@ -1,6 +1,13 @@
-Authors of SCWS
-================
-$Id$
+SCWS authors and maintainers
+============================
 
-1. hightman <hightman2@yahoo.com.cn>
+Original author:
+  hightman <hightman2@yahoo.com.cn>
 
+Fork maintenance and releases:
+  henrychen95
+
+Early Windows port:
+  ben
+
+Additional contributions are recorded in the Git history.

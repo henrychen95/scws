@@ -1,0 +1,7 @@
+* text=auto
+acprep text eol=lf
+*.sh text eol=lf
+*.am text eol=lf
+*.ac text eol=lf
+*.m4 text eol=lf
+*.yml text eol=lf

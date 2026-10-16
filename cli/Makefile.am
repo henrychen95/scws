@@ -3,9 +3,9 @@
 
 LIBTOOL = @LIBTOOL@ $(QUIET:y=--quiet)
 
-libscwsdir = $(top_srcdir)/libscws
+libscwsdir = $(top_builddir)/libscws
 
-INCLUDES = -I$(top_srcdir) -I$(libscwsdir)
+AM_CPPFLAGS = -I$(top_builddir) -I$(top_builddir)/libscws -I$(top_srcdir)/libscws
 
 bin_PROGRAMS = scws scws-gen-dict
 

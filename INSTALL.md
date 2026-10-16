@@ -9,7 +9,7 @@
 - `scws-1.2.4.tar.gz`
 - `scws-1.2.4.tar.gz.sha256`
 
-若尚未發佈該版本，請使用下方的 Git 原始碼建置流程。正式附件包含 `configure`；GitHub 自動產生的 Source code 壓縮檔需先產生建置檔案。
+正式附件包含 `configure`；Git checkout 與 GitHub 自動產生的 Source code 壓縮檔需依下方的 Git 原始碼建置流程，先產生建置檔案。
 
 將兩個附件放在同一目錄：
 

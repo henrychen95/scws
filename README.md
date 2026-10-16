@@ -2,7 +2,7 @@
 
 SCWS（Simple Chinese Word Segmentation）是以 C 撰寫的中文分詞引擎，提供共享函式庫、命令列工具與 PHP 擴充，支援 UTF-8、GBK、詞典分詞及關鍵詞統計。
 
-這是由 henrychen95 維護與發行的版本，主要維護 Linux 安裝流程與 PHP 8.4 相容性。目前準備發行的核心版本為 **1.2.4**，PHP 擴充模組版本為 **0.2.4**。
+這是由 henrychen95 維護與發行的版本，主要維護 Linux 安裝流程與 PHP 8.4 相容性。核心版本為 **1.2.4**，PHP 擴充模組版本為 **0.2.4**。
 
 - [下載發行套件](https://github.com/henrychen95/scws/releases)
 - [回報問題](https://github.com/henrychen95/scws/issues)
@@ -12,7 +12,7 @@ SCWS（Simple Chinese Word Segmentation）是以 C 撰寫的中文分詞引擎�
 
 正式發行附件為 `scws-1.2.4.tar.gz` 與 `scws-1.2.4.tar.gz.sha256`，包含預先產生的 `configure` 與建置檔案。在 Linux 安裝時仍需要 C 編譯器與 Make。
 
-若 Releases 尚未提供該版本，請依 [Git 原始碼建置步驟](INSTALL.md#從-git-原始碼建置)安裝。GitHub 自動產生的 Source code 壓縮檔也適用該步驟。
+使用 Git checkout 或 GitHub 自動產生的 Source code 壓縮檔時，請依 [Git 原始碼建置步驟](INSTALL.md#從-git-原始碼建置)安裝。
 
 取得正式發行附件後，在 Debian／Ubuntu 安裝：
 
